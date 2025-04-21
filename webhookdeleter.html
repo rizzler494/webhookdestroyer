@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discord Webhook Tool</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: white;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      padding: 2rem;
+      animation: gradientShift 10s ease infinite;
+      background-size: 400% 400%;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    input, button {
+      margin: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: none;
+    }
+
+    input {
+      width: 300px;
+    }
+
+    button {
+      cursor: pointer;
+      background: #444;
+      color: white;
+    }
+
+    button:hover {
+      background: #666;
+    }
+
+    #log {
+      margin-top: 2rem;
+      max-height: 200px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      border-radius: 10px;
+      text-align: left;
+    }
+
+    #status {
+      margin-top: 1rem;
+      font-weight: bold;
+      color: lightgreen;
+    }
+  </style>
+</head>
+<body>
+  <h1>Disco With Me 🕺</h1>
+  <p><small>No data is ever stored or sent to any server.</small></p>
+
+  <input id="webhook" placeholder="Webhook URL" /><br />
+  <input id="username" placeholder="Username" /><br />
+  <input id="avatar" placeholder="Avatar URL" /><br />
+  <input id="message" placeholder="Message to send" /><br />
+  <input id="delay" placeholder="Delay (ms)" type="number" /><br />
+
+  <button onclick="startSpamming()">Start</button>
+  <button onclick="stopSpamming()">Stop</button>
+  <button onclick="editWebhook()">Edit</button>
+  <button onclick="deleteWebhook()">Delete</button>
+
+  <div id="status">Checking webhook...</div>
+  <div id="log"></div>
+
+  <script>
+    let spamInterval = null;
+
+    function logMessage(msg) {
+      const logDiv = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      logDiv.innerHTML = `<div>[${time}] ${msg}</div>` + logDiv.innerHTML;
+    }
+
+    async function sendMessage() {
+      const url = document.getElementById('webhook').value;
+      const username = document.getElementById('username').value;
+      const avatar = document.getElementById('avatar').value;
+      const content = document.getElementById('message').value;
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, avatar_url: avatar, content })
+        });
+
+        if (res.ok) {
+          logMessage(`✅ Sent: "${content}"`);
+        } else {
+          const data = await res.text();
+          logMessage(`❌ Error ${res.status}: ${data}`);
+        }
+      } catch (err) {
+        logMessage(`❌ Fetch error: ${err.message}`);
+      }
+    }
+
+    function startSpamming() {
+      const delay = parseInt(document.getElementById('delay').value);
+      if (spamInterval) return;
+      sendMessage();
+      spamInterval = setInterval(sendMessage, delay);
+    }
+
+    function stopSpamming() {
+      clearInterval(spamInterval);
+      spamInterval = null;
+      logMessage('🛑 Spamming stopped');
+    }
+
+    function editWebhook() {
+      const url = document.getElementById('webhook').value;
+      const username = document.getElementById('username').value;
+      const avatar = document.getElementById('avatar').value;
+
+      fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: username, avatar: avatar })
+      })
+      .then(res => {
+        if (res.ok) logMessage('✏️ Webhook updated');
+        else logMessage(`❌ Failed to update webhook (${res.status})`);
+      });
+    }
+
+    function deleteWebhook() {
+      const url = document.getElementById('webhook').value;
+      fetch(url, { method: 'DELETE' })
+        .then(res => {
+          if (res.ok) logMessage('🗑️ Webhook deleted');
+          else logMessage(`❌ Failed to delete webhook (${res.status})`);
+        });
+    }
+
+    async function checkWebhookStatus() {
+      const url = document.getElementById('webhook').value;
+      if (!url) return;
+      try {
+        const res = await fetch(url);
+        const statusDiv = document.getElementById('status');
+        if (res.ok) {
+          statusDiv.innerText = '✅ Webhook is valid';
+          statusDiv.style.color = 'lightgreen';
+        } else {
+          statusDiv.innerText = `⚠️ Status: ${res.status}`;
+          statusDiv.style.color = 'orange';
+        }
+      } catch (err) {
+        document.getElementById('status').innerText = '❌ Invalid webhook';
+        document.getElementById('status').style.color = 'red';
+      }
+    }
+
+    setInterval(checkWebhookStatus, 5000);
+  </script>
+</body>
+</html>
